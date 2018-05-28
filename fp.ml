@@ -1,7 +1,7 @@
 
 module type VARIABLE = sig
-	type a
-	val valToString: a -> string
+	type t
+	val val_to_string: t -> string
 end
 
 
@@ -9,7 +9,7 @@ module Formule = functor (V: VARIABLE) ->
 struct
 
 	type fp =
-	|Var of V.a
+	|Var of V.t
 	|T
 	|F
 	|Not of fp
@@ -19,7 +19,7 @@ struct
 	|Eq of fp*fp
 
 	let rec toString = function
-	|Var a -> V.valToString a
+	|Var a -> V.val_to_string a
 	|T -> " true"
 	|F -> " false"
 	|Not e1 ->" not " ^ toString e1
