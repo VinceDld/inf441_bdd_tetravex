@@ -1,4 +1,5 @@
-open Formule
+#load "fp.ml"
+open Formula
 
 module type VARIABLE = sig
 	type t
@@ -14,10 +15,24 @@ module type BDT =
 module Bdt = functor (V: VARIABLE) ->
 	(struct
 		type bdt = 
-			|Node of bdt * V.t * bdt
-			|True
-			|False
-		let formule_to_bdt f =  True (* TO DO *)
+			|Root of bdt * V.t * bdt
+			|Node of n
+			|True of bdt
+			|False of bdt
+		and n = {t : bdt ; f : bdt ; var : V.t ; father : bdt}
+		let get_valuation bdt = 
+			let rec aux b l = match b with
+				|Node (n) -> if n.t = b then aux n ( (n.var,true)::l )
+					else aux n ( (n.var,false)::l )
+				|True (f) -> if f.t = b then aux f ( (f.var,true)::l )
+					else aux n ( (b.var,false)::l ) 
+				|False (f) -> if f.t = b then aux f ( (f.var,true)::l )
+					else aux n ( (b.var,false)::l )
+				|Root (t,var,f) -> if t = b then (var,true)::l
+					else (var,false)::l
+			in aux bdt []
+
+		let formule_to_bdt f =  ()  (* TO DO *)
 	end:BDT)
 
 
@@ -28,6 +43,7 @@ module type BDD =
 		val formule_to_bdd : Formule.fp -> bdd
 		val file_to_bdd : string -> bdd
 		val node_to_string : bdd -> string
+		val display : bdd -> unit
 	end
 
 module Bdd = functor (V: VARIABLE) ->
@@ -58,4 +74,5 @@ module Bdd = functor (V: VARIABLE) ->
 					|False -> string_of_int n.id ^ " " ^ V.val_to_string n.var ^ " " ^ string_of_int nt.id ^ " " ^ "@f" ^ "\n"
 					|Node nf -> string_of_int n.id ^ " " ^ V.val_to_string n.var ^ " " ^ string_of_int nt.id ^ " " ^ string_of_int nf.id ^ "\n"
 				end
+		let display b = ()
 	end:BDD)
