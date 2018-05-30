@@ -90,8 +90,8 @@ let rec builder s =
 			| 'E' -> Eq(builder s1, builder s2)
 			| _ -> failwith "Operation attendue"
 		end
-(* match tab with s1::['E']::s2 -> 
- *)(* Debug de split *)
+
+ (* Debug de split *)
 let _ = assert (stringToArray "azert" = ['a'; 'z'; 'e'; 'r'; 't'])
 let _ = assert (split "(1)A(2)" = StringSplit("1", 'A', "2"))
 let _ = assert (split "(1)A2" = StringSplit("1", 'A', "2"))
@@ -107,6 +107,44 @@ let _ = assert (builder "(aAb)Oc" = Or(And(Var('a'), Var('b')),Var('c')))
 let _ = assert (builder "aA(bOc)" = And(Var('a'), Or(Var('b'),Var('c'))))
 let _ = assert (builder "Na" = Not(Var('a')))
 let _ = assert (builder "N(aA(bOc))" = Not(And(Var('a'), Or(Var('b'),Var('c')))))
+
+let authorised_caracters = ["=>" ; "<=>" ; "~" ; "and" ; "or" ; "(" ; ")" ; "true" ; "false" ; "#" ]
+let lexer s = Genlex.make_lexer authorised_caracters (Stream.of_string s)
+let parser s = 
+	let q = lexer s in
+	let rec aux acc =
+		match Stream.next q with
+			|Genlex.Kwd "=>" -> aux (acc^"I")
+			|Genlex.Kwd "<=>" -> aux (acc^"E")
+			|Genlex.Kwd "~" -> aux (acc^"N")
+			|Genlex.Kwd "and" -> aux (acc^"A")
+			|Genlex.Kwd "or" -> aux (acc^"O")
+			|Genlex.Kwd "(" -> aux (acc^"(")
+			|Genlex.Kwd ")" -> aux (acc^")")
+			|Genlex.Kwd "true" -> aux (acc^"T")
+			|Genlex.Kwd "false" -> aux (acc^"F")
+			|Genlex.Kwd "#" -> acc
+			|Genlex.Ident c -> aux (acc^c)
+			|_ -> failwith "forbidden characters"
+	in aux ""
+
+let input_formula () =
+	print_endline "Enter a prositionnal formula :";
+	(read_line ()) ^ "#";;
+
+let rec toString = function
+	|Var a -> " " ^ String.make 1 a
+	|Cst a -> if a then "true" else "false"
+	|Not e1 ->" not" ^ toString e1
+	|And (e1,e2) -> "(" ^ toString e1 ^ " and" ^ toString e2 ^ ")"
+	|Or (e1,e2) -> "(" ^ toString e1 ^ " or" ^ toString e2 ^ ")"
+	|Imp (e1,e2) -> "(" ^ toString e1 ^ " =>" ^ toString e2 ^ ")"
+	|Eq (e1,e2) -> "(" ^ toString e1 ^ " <=>" ^ toString e2 ^ ")"
+
+let s = input_formula ()
+let clean_formula = parser s
+let a = builder clean_formula
+let _ =print_endline (toString a)
 
 	(*let neg p = not p
 	let et p q = p && q
