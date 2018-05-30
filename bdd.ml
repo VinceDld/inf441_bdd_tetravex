@@ -1,5 +1,4 @@
-#load "fp.ml"
-open Formula
+open Fp;;
 
 module type VARIABLE = sig
 	type t
@@ -9,18 +8,31 @@ end
 module type BDT = 
 	sig
 		type bdt
-		val formule_to_bdt : Formule.fp -> bdt
 	end
 
 module Bdt = functor (V: VARIABLE) ->
 	(struct
-		type bdt = 
-			|Root of bdt * V.t * bdt
-			|Node of n
-			|True of bdt
-			|False of bdt
-		and n = {t : bdt ; f : bdt ; var : V.t ; father : bdt}
-		let get_valuation bdt = 
+		type node  = 
+			|Node of node * V.t * node 
+			|True 
+			|False 
+		and bdt = 
+			|Root of node * ((bool list) ref)
+			|Empty
+
+		let build_bdt f b = match b with
+			|Empty ->  match f with
+				|Var v -> Root(Node(False, v, True),(false::true::[]) ref)
+				|Cst b -> Cst b
+				|Not f -> Not (replace f (a,b))
+				|And (f1,f2) -> And (replace f1 (a,b), replace f2 (a,b)) 
+				|Or (f1,f2) -> Or (replace f1 (a,b), replace f2 (a,b))
+				|Imp (f1,f2) -> Imp (replace f1 (a,b), replace f2 (a,b))
+				|Eq (f1,f2) -> Eq (replace f1 (a,b), replace f2 (a,b))
+
+
+
+(* 		let get_valuation bdt = 
 			let rec aux b l = match b with
 				|Node (n) -> if n.t = b then aux n ( (n.var,true)::l )
 					else aux n ( (n.var,false)::l )
@@ -30,14 +42,14 @@ module Bdt = functor (V: VARIABLE) ->
 					else aux n ( (b.var,false)::l )
 				|Root (t,var,f) -> if t = b then (var,true)::l
 					else (var,false)::l
-			in aux bdt []
+			in aux bdt [] *)
 
 		let formule_to_bdt f =  ()  (* TO DO *)
 	end:BDT)
 
 
 
-module type BDD = 
+(* module type BDD = 
 	sig
 		type bdd and node
 		val formule_to_bdd : Formule.fp -> bdd
@@ -75,4 +87,4 @@ module Bdd = functor (V: VARIABLE) ->
 					|Node nf -> string_of_int n.id ^ " " ^ V.val_to_string n.var ^ " " ^ string_of_int nt.id ^ " " ^ string_of_int nf.id ^ "\n"
 				end
 		let display b = ()
-	end:BDD)
+	end:BDD) *)

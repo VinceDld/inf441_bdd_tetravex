@@ -1,13 +1,14 @@
+open Fp;;
 
 module Var_Char = struct
 	type t = char
 	let val_to_string a = String.make 1 a
 end
 
-module Fp = Formula(Var_Char)
+module F = Formula(Var_Char)
 
 (************ PARSER ************)
-module Parser = 
+module P = 
 struct
 	(* Type pour représenter les différents types d'opérations, constant booléan ou variable, opération unaira (not) ou opération binaire*)
 	type expr = 
@@ -59,39 +60,39 @@ struct
 
 	let rec builder s =
 	match split s with
-	| NotOperation s -> Fp.Not(builder s)
+	| NotOperation s -> F.Not(builder s)
 	| Single s -> 
 		begin
 			match stringToArray s with 
 			| c1::c2::c3::[] -> begin
 				match c2 with
-				| 'A' -> Fp.And(Fp.Var(c1), Fp.Var(c3))
-				| 'O' -> Fp.Or(Fp.Var(c1),Fp.Var(c3))
-				| 'I' -> Fp.Imp(Fp.Var(c1),Fp.Var(c3))
-				| 'E' -> Fp.Eq(Fp.Var(c1),Fp.Var(c3))
+				| 'A' -> F.And(F.Var(c1), F.Var(c3))
+				| 'O' -> F.Or(F.Var(c1),F.Var(c3))
+				| 'I' -> F.Imp(F.Var(c1),F.Var(c3))
+				| 'E' -> F.Eq(F.Var(c1),F.Var(c3))
 				| _ -> failwith "Operation attendue"
 			end
-			| c1::c2::[] -> if (c1 = 'N') then Fp.Not(Fp.Var(c2)) else failwith "Mauvaise negation"
+			| c1::c2::[] -> if (c1 = 'N') then F.Not(F.Var(c2)) else failwith "Mauvaise negation"
 			| c1::[] -> begin
 				match c1 with 
-				| 'F' -> Fp.Cst(false)
-				| 'T' -> Fp.Cst(true)
-				| _ -> Fp.Var(c1)
+				| 'F' -> F.Cst(false)
+				| 'T' -> F.Cst(true)
+				| _ -> F.Var(c1)
 			end
 			| _ -> failwith "Mauvaise longueur du Single"
 		end
 	| StringSplit (s1, c, s2) -> 
 		begin
 			match c with
-			| 'A' -> Fp.And(builder s1, builder s2)
-			| 'O' -> Fp.Or(builder s1, builder s2)
-			| 'I' -> Fp.Imp(builder s1, builder s2)
-			| 'E' -> Fp.Eq(builder s1, builder s2)
+			| 'A' -> F.And(builder s1, builder s2)
+			| 'O' -> F.Or(builder s1, builder s2)
+			| 'I' -> F.Imp(builder s1, builder s2)
+			| 'E' -> F.Eq(builder s1, builder s2)
 			| _ -> failwith "Operation attendue"
 		end
 
 	(* Normalise la String*)
-	let authorised_caracters = ["=>" ; "<=>" ; "~" ; "and" ; "or" ; "(" ; ")" ; "true" ; "false" ; "END_OF_FORMULA" ]
+	let authorised_caracters = ["=>" ; "<=>" ; "~" ; "and" ; "or" ; "(" ; ")" ; "true" ; "false" ; "#" ]
 	let lexer s = Genlex.make_lexer authorised_caracters (Stream.of_string s)
 	let normaliser s = 
 		let q = lexer s in
@@ -106,13 +107,13 @@ struct
 				|Genlex.Kwd ")" -> aux (acc^")")
 				|Genlex.Kwd "true" -> aux (acc^"T")
 				|Genlex.Kwd "false" -> aux (acc^"F")
-				|Genlex.Kwd "END_OF_FORMULA" -> acc
+				|Genlex.Kwd "#" -> acc
 				|Genlex.Ident c -> aux (acc^c)
 				|_ -> failwith "forbidden characters"
 		in aux ""
 
 	let input_formula () =
 		print_endline "Enter a prositionnal formula :";
-		(read_line ()) ^ "END_OF_FORMULA";;
+		(read_line ()) ^ "#";;
 
 end
