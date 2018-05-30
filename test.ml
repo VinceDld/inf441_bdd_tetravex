@@ -30,6 +30,10 @@ let _ = assert (valuation (Or(Not(Cst true),Cst false)) = false)
 let _ = assert (valuation (Imp(Cst true,Cst false)) = true)
 let _ = assert (valuation (Eq(And(Cst true, Cst true),Cst true)) = true)
 
+let _ = assert (is_constant(And(Var 'b',Var 'a')) = false)
+
+let _ = assert (only_true_valuation(And(Var 'b',Var 'a')) = true)
+
 let s = input_formula ()
 let clean_formula = P.normaliser s
 let a = builder clean_formula

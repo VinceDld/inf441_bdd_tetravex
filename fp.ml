@@ -60,7 +60,25 @@ struct
 		|And (f1,f2) -> et (valuation f1) (valuation f2) 
 		|Or (f1,f2) -> ou (valuation f1) (valuation f2) 
 		|Imp (f1,f2) -> imp (valuation f1) (valuation f2) 
-		|Eq (f1,f2) -> equiv (valuation f1) (valuation f2) 
+		|Eq (f1,f2) -> equiv (valuation f1) (valuation f2)
+
+	let list_of_var fp = 
+		let rec aux f l = match f with
+			| Var v -> v::l
+			| Cst a -> l
+			| Not f0 -> aux f0 l
+			| And (f1,f2) |Or (f1,f2) |Imp (f1,f2) |Eq (f1,f2) -> (aux f1 l)@(aux f2 l)
+		in aux fp [] 
+
+	exception ExpNotConst
+	let only_true_valuation f = valuation (replace_all f (List.map (fun a -> (a,true)) (list_of_var f)))
+	let is_constant fp = 
+		let rec aux l f = 
+		match l with
+			|[] -> valuation(f)
+			|hd::tl -> if ((aux tl (replace f (hd,true))) != (aux tl (replace f (hd,false)))) then raise (ExpNotConst) else true
+		in try aux (list_of_var fp) fp
+		with ExpNotConst -> false
 
 end
 

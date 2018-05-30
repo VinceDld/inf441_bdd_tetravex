@@ -1,52 +1,74 @@
-open Fp;;
+open Parser;;
+open P;;
+open F;;
 
-module type VARIABLE = sig
-	type t
-	val val_to_string: t -> string
-end
+type node = 
+	| Node of node*char*node 
+	| Leaf of bool
+	| ToProcess 
 
-module type BDT = 
-	sig
-		type bdt
-	end
+	let node_var n = match n with 
+		|Node(left,v,right) -> v
+		|_ -> failwith "node_var s'applique seulement au constructeur Node"
 
-module Bdt = functor (V: VARIABLE) ->
-	(struct
-		type node  = 
-			|Node of node * V.t * node 
-			|True 
-			|False 
-		and bdt = 
-			|Root of node * ((bool list) ref)
-			|Empty
+	let make_bdt fp = 
+		let rec aux l f b= match l with
+			| [] -> Leaf(valuation(f))
+			| hd::tl -> let a = is_constant f in
+				if a then Leaf ((only_true_valuation f))
+				else begin match b with 
+					|ToProcess -> Node((aux tl (replace f (hd, false)) ToProcess), hd, (aux tl (replace f (hd, true)) ToProcess))
+					|_ -> failwith "bad implementation of make_bdt"
+				end
+		in aux (list_of_var fp) fp ToProcess
 
-		let build_bdt f b = match b with
-			|Empty ->  match f with
-				|Var v -> Root(Node(False, v, True),(false::true::[]) ref)
-				|Cst b -> Cst b
-				|Not f -> Not (replace f (a,b))
-				|And (f1,f2) -> And (replace f1 (a,b), replace f2 (a,b)) 
-				|Or (f1,f2) -> Or (replace f1 (a,b), replace f2 (a,b))
-				|Imp (f1,f2) -> Imp (replace f1 (a,b), replace f2 (a,b))
-				|Eq (f1,f2) -> Eq (replace f1 (a,b), replace f2 (a,b))
+	let bdt_to_string nodeP = 
+		let rec aux node = match node with
+		| Leaf(b) -> if b then " T "  else " F "
+		| Node(left, v, right) -> "{ " ^ (String.make 1 v) ^ " left son :" ^ (aux left) ^ " right son : " ^ (aux right) ^ " }"
+		| ToProcess -> failwith "bdt mal construit"
+	in aux nodeP 
+
+	let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 'r', Var 's')))
+	let b = make_bdt (Or(Var 'a', Var 'b'))
+	let _ = print_string ((bdt_to_string a)); 
 
 
+(* CODE PERMETTANT DE CREER UN BDT SIMPLE AVEC 0 OPTIMISATION*)
+(* type node = 
+	| Node of node*char*node 
+	| Leaf of bool option ref
 
-(* 		let get_valuation bdt = 
-			let rec aux b l = match b with
-				|Node (n) -> if n.t = b then aux n ( (n.var,true)::l )
-					else aux n ( (n.var,false)::l )
-				|True (f) -> if f.t = b then aux f ( (f.var,true)::l )
-					else aux n ( (b.var,false)::l ) 
-				|False (f) -> if f.t = b then aux f ( (f.var,true)::l )
-					else aux n ( (b.var,false)::l )
-				|Root (t,var,f) -> if t = b then (var,true)::l
-					else (var,false)::l
-			in aux bdt [] *)
+	let make_bdt fp = 
+		let rec aux1 l = match l with
+			| [] -> Leaf(ref None)
+			| hd::tl -> Node(aux1 tl, hd, aux1 tl)
+		in let b0 = aux1 (list_of_var fp) 
+		in let rec aux2 f b = match b with
+			|Leaf(a) -> begin match !a with
+				|None -> a := (Some(valuation(f))); ();
+				|Some(k) -> failwith "This leaf has already been evaluated"
+			end
+			|Node(left, v, right) -> begin 
+				aux2 (replace f (v, false)) left;
+				aux2 (replace f (v, true)) right;
+			end
+		in aux2 fp (b0); b0
 
-		let formule_to_bdt f =  ()  (* TO DO *)
-	end:BDT)
+	let leaf_to_bool a = match !a with
+		| None -> failwith "A leaf have not been evaluated"
+		| Some(b) -> b
 
+	(* Parcours prefixe *)
+	let bdt_to_string nodeP = 
+		let rec aux node s = match node with
+		| Leaf(b) -> if leaf_to_bool (b) then s^" T " else s^" F "
+		| Node(left, v, right) -> aux right ((aux left s)^(String.make 1 v))
+	in aux nodeP "" 
+
+	let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 's', Var 's')))
+	let b = make_bdt (Or(Var 'a', Var 'b'))
+	let _ = print_string ("Arbre prefixe : "^(bdt_to_string a));  *)
 
 
 (* module type BDD = 
