@@ -3,7 +3,7 @@ open P;;
 open F;;
 
 type bdt = 
-	| Node of bdt*char*bdt 
+	| Node of bdt*char*bdt
 	| Leaf of bool
 	| ToProcess 
 
@@ -51,10 +51,21 @@ type bdt =
 	let _ = print_string ((bdt_to_string a)); 
 
 (* Partie sur la dernière compression *)
+type bdtRef = 
+	| Node of bdt ref*char*bdt ref
+	| Leaf of bool
+	| ToProcess 
+
+let bdt_to_bdtref nodeP = (* build the bdt with ref on the children *)
+	let rec aux node = match node with
+	| Leaf(b) -> if b then Leaf(true)  else Leaf(false)
+	| Node(left, v, right) -> Node(ref (bdt_to_bdtref left), v, ref (bdt_to_bdtref right))
+	| ToProcess -> failwith "bdt mal construit"
+
 (* On transcrit notre arbre en liste de références sur ses noeuds *)
 let treeToListe tree = 
 	let liste = ref [] in
-		let aux node father =  (* Ajoute à liste les trucs *)
+		let rec aux node father =  (* Ajoute à liste les trucs *)
 			match node with
 			| ToProcess -> failwith ("Arbre mal construit")
 			| Leaf(b) -> () (* Rien à ajouter dans ce cas *)
@@ -93,7 +104,7 @@ let simplify tree =	let listeNodeRefFather = treeToListe tree in
 
 
 let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 'r', Var 's')))
-let b = simplify a
+let b = simplify (bdt_to_bdtref a)
 let _ = print_string ((bdt_to_string b)); 
 
 
