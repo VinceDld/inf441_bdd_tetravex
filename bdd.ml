@@ -52,32 +52,40 @@ type bdt =
 
 (* Partie sur la dernière compression *)
 type bdtRef = 
-	| Node of bdt ref*char*bdt ref
-	| Leaf of bool
-	| ToProcess 
+	| NodeRef of bdtref ref*char*bdtref ref
+	| LeafRef of bool
+	| ToProcessRef
 
 let bdt_to_bdtref nodeP = (* build the bdt with ref on the children *)
 	let rec aux node = match node with
-	| Leaf(b) -> if b then Leaf(true)  else Leaf(false)
-	| Node(left, v, right) -> Node(ref (bdt_to_bdtref left), v, ref (bdt_to_bdtref right))
+	| Leaf(b) -> if b then LeafRef(true)  else LeafRef(false)
+	| Node(left, v, right) -> NodeRef(ref (aux left), v, ref (aux right))
 	| ToProcess -> failwith "bdt mal construit"
+	in aux nodeP
+
+let bdtref_to_bdt nodeP = (* build the bdt with ref on the children *)
+	let rec aux node = match node with
+	| LeafRef(b) -> if b then Leaf(true)  else Leaf(false)
+	| NodeRef(left, v, right) -> Node(aux !left, v, aux !right)
+	| ToProcesRef -> failwith "bdt mal construit"
+	in aux nodeP
 
 (* On transcrit notre arbre en liste de références sur ses noeuds *)
 let treeToListe tree = 
 	let liste = ref [] in
 		let rec aux node father =  (* Ajoute à liste les trucs *)
 			match node with
-			| ToProcess -> failwith ("Arbre mal construit")
-			| Leaf(b) -> () (* Rien à ajouter dans ce cas *)
-			| Node(left, v, right) -> 
+			| ToProcessRef -> failwith ("Arbre mal construit")
+			| LeafRef(b) -> () (* Rien à ajouter dans ce cas *)
+			| NodeRef(left, v, right) -> 
 				aux !right node;
 				liste := ((ref node), father)::(!liste);
 				aux !left node;
-		in aux tree ToProcess in
-	!liste;
+		in aux tree ToProcessRef;
+	!liste
 
 let changeChild node child newChild = match node with
-	| Node(left, v, right) -> if (!left = child) then left := newChild
+	| NodeRef(left, v, right) -> if (!left = child) then left := newChild
 								else right := newChild
 	| _ -> failwith ("Pas un noeud")
 
@@ -93,18 +101,33 @@ let joinAlike listeNodeRefFather node father =
 						else aux l
 	in aux listeNodeRefFather
 
-let simplify tree =	let listeNodeRefFather = treeToListe tree in
+let simplify tree =	
+	let listeNodeRefFather = treeToListe tree in
 		let rec aux liste = (*  parcourt la liste en faisant des join avec les nodes plus loin *)
 			match liste with
 			 | [] -> tree
 			 | x :: l -> joinAlike l !(fst x) (snd x); (* On essaye de join x *)
 			 			 aux l (* On continue de récurrer *)
 		in aux listeNodeRefFather
-	in tree
 
+(* Donne la hauteur en descendant à gauche *)
+let rec leftheight bdtref = match bdtref with
+	| LeafRef(b) -> 1
+	| Node(left,v,right) -> 1 + leftheight !left
+	| _ -> failwith ("Erreur sur la hauteur")
+
+(* Donne le nombre de sommet /!\ Détruit le bdtref *)
+let rec number bdtref = match bdtref with
+	| LeafRef(b) -> 0
+	| Node(left,v,right) -> let nb = number (!left) + 1 + number(!right) in 
+		changeChild node !left LeafRef(true);
+		changeChild node !right LeafRef(true);
+		nb
+	| _ -> failwith ("Erreur sur la hauteur")	
 
 let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 'r', Var 's')))
-let b = simplify (bdt_to_bdtref a)
+let b = bdtref_to_bdt (simplify (bdt_to_bdtref a))
+let _ = print_int (number (simplify (bdt_to_bdtref a)))
 let _ = print_string ((bdt_to_string b)); 
 
 
@@ -119,7 +142,7 @@ let first_3 (a,b,c) = a
 let second_3 (a,b,c) = b
 let third_3 (a,b,c) = c
 
-let file_to_hash filename = let file_to_hash_aux filename h=
+let file_to_hash filename = let file_to_hash_aux filename h =
 	let chan = open_in filename in 
 		try
 			while true; do
