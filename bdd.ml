@@ -50,6 +50,54 @@ type bdt =
 (* 	let _ = assert *)
 	let _ = print_string ((bdt_to_string a)); 
 
+(* Partie sur la dernière compression *)
+(* On transcrit notre arbre en liste de références sur ses noeuds *)
+let treeToListe tree = 
+	let liste = ref [] in
+		let aux node father =  (* Ajoute à liste les trucs *)
+			match node with
+			| ToProcess -> failwith ("Arbre mal construit")
+			| Leaf(b) -> () (* Rien à ajouter dans ce cas *)
+			| Node(left, v, right) -> 
+				aux !right node;
+				liste := ((ref node), father)::(!liste);
+				aux !left node;
+		in aux tree ToProcess in
+	!liste;
+
+let changeChild node child newChild = match node with
+	| Node(left, v, right) -> if (!left = child) then left := newChild
+								else right := newChild
+	| _ -> failwith ("Pas un noeud")
+
+
+let joinAlike listeNodeRefFather node father = 
+	(* find a node = to our node but with a different father and returns it *)
+	let rec aux liste = 
+		match liste with 
+			| [] -> ()
+			| x::l -> if !(fst x) = node && snd x != father then (* inutile de verif les fathers car (ref node, father) n'est pas dans la liste si elle est bien appelé *)
+				changeChild father node !(fst x) (* On fait pointer le pere vers le nouveau fils *)
+				(* On doit retirer node et ses fils ? Par forcément si on relie qu'avec des plus grands que nous dans la liste => pas de cycle qui se perd *)
+						else aux l
+	in aux listeNodeRefFather
+
+let simplify tree =	let listeNodeRefFather = treeToListe tree in
+		let rec aux liste = (*  parcourt la liste en faisant des join avec les nodes plus loin *)
+			match liste with
+			 | [] -> tree
+			 | x :: l -> joinAlike l !(fst x) (snd x); (* On essaye de join x *)
+			 			 aux l (* On continue de récurrer *)
+		in aux listeNodeRefFather
+	in tree
+
+
+let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 'r', Var 's')))
+let b = simplify a
+let _ = print_string ((bdt_to_string b)); 
+
+
+(* Partie BDD *)
 type node = 
 	| Node of node*char*node*int 
 	| Leaf of bool
