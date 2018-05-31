@@ -28,7 +28,7 @@ struct
 	si la variable a n'est dans form renvoie une copie de form non modifié*)
 	let rec replace form (a,b) = match form with
 		|Var v -> if v = a then Cst b else Var v
-		|Cst b -> Cst b
+		|Cst c -> Cst c
 		|Not f -> Not (replace f (a,b))
 		|And (f1,f2) -> And (replace f1 (a,b), replace f2 (a,b)) 
 		|Or (f1,f2) -> Or (replace f1 (a,b), replace f2 (a,b))
@@ -49,7 +49,7 @@ struct
 	let neg p = not p
 	let et p q = p && q
 	let ou p q = p || q
-	let imp p q = p || (not q)
+	let imp p q = q || (not p)
 	let equiv p q = (q || (not p)) || (p || (not q))
 
 	(* Prend une formule sans variable et l'évalue, fail s'il reste une varialbe dans la formule*)
