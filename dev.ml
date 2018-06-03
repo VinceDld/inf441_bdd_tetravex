@@ -1,6 +1,4 @@
-open Parser;;
-open P;;
-open F;;
+(* bdt approche bottom up *)
 
 exception RootExc of string
 exception LeafExc of string
@@ -81,11 +79,6 @@ exception LeafExc of string
 					nodeClone;
 			in { root = cloneNodeTree bdt.root; bottom = !currLeaves; }
 	
-(* 	let joinToNodeBDT node bdt op = match node with
-		| Node(left, v, right, father) -> 
-			left := !(cloneBDT bdt).root.left;
-		| _ -> failwith "Erreur dans joinToNodeBDT : un noeud est attendu pour join avec un BDT" *)
-
 	let nodeRefToString nodeP = 
 		let rec aux node s = match node with
 		| Leaf(b) -> if (b) then s^" T " else s^" F "
@@ -161,58 +154,132 @@ exception LeafExc of string
 
 
 	let node = Node(ref (Leaf(false)), 'v', ref (Leaf(true)), ref None)
-	(* let bdt = { root = Node(ref (Leaf(true)), 'v', ref node, ref None); bottom = [ref (Node(ref (Leaf(true)), 'v', ref node, ref None)); ref node];} *)
 	let bdtInit = build_bdt (builder ("bAc"))
 	let bdt = optimise bdtInit
-	(* let _ = setLeft (!(List.hd bdt.bottom)) (Leaf(true)) *)
-	let _ = List.iter print_string (List.map nodeRefToString bdt.bottom)
-	let _ = print_string ("Arbre prefixe : "^(nodeToString (bdt.root)))
 	let _ = assert(nodeToString ( Node(ref (Leaf(false)), 'a', ref (Leaf(true)), ref None)) = " F a T ")
-(* 	let _ = assert(nodeRefToString ((cloneBDT bdt).root) = " T v T v F ");
-	let _ = assert(List.map (function nodeRef -> nodeRefToString nodeRef) ((cloneBDT bdt).bottom) = [" T v F "; " T v T v F "]); *)
 
-(* 	let  default = { 
-		e_cst = (fun i -> Cst i);
-		e_var = (fun s -> Var s);
-		e_and = (fun e0 e1 -> Mul (e0 , e1)); 
-		e_or = (fun e0 e1 -> Mul (e0 , e1)); 
-		e_imp = (fun e0 e1 -> Mul (e0 , e1)); 
-		e_eq = (fun e0 e1 -> Mul (e0 , e1)); 
-		e_neg = (fun e -> Neg e); 
-	}
+(*********************************************************************************
+**********************************************************************************
+**********************************************************************************
+**********************************************************************************
+**********************************************************************************)
+(* bdd avec ref *)
 
-	let  transf  vis =
-		let rec aux node =
-		match bdt with
-			| Cst b -> vis.e_cst b
-			| Var v -> vis.e_var v
-			| And (e0, e1) -> vis.e_and (aux e0) (aux e1)
-			| Or (e0, e1) -> vis.e_or (aux e0) (aux e1)
-			| Imp (e0, e1) -> vis.e_imp (aux e0) (aux e1)
-			| Eq (e0, e1) -> vis.e_eq (aux e0) (aux e1)
-			| Neg e -> vis.e_neg (aux e)
-		aux
+type bddRef = 
+	| NodeRef of bdtRef ref* char * bdtRef ref
+	| LeafRef of bool
+	| ToProcessRef
 
-	let  vis_cst_op op  =
-		let  f_cst b =
-			Cst (var_to_val  1) in
-		{ default  with
-		e_var = f_var }
-		let  vis_var_def  var_to_val =
-		transf (vis_var_def  var_to_val)
+let bdt_to_bdtref nodeP = (* build the bdt with ref on the children *)
+	let rec aux node = match node with
+	| Leaf(b) -> if b then LeafRef(true)  else LeafRef(false)
+	| Node(left, v, right) -> NodeRef(ref (aux left), v, ref (aux right))
+	| ToProcess -> failwith "bdt mal construit"
+	in aux nodeP
+
+let bdtref_to_bdt nodeP = (* build the bdt with ref on the children *)
+	let rec aux node = match node with
+	| LeafRef(b) -> if b then Leaf(true)  else Leaf(false)
+	| NodeRef(left, v, right) -> Node(aux !left, v, aux !right)
+	| ToProcessRef -> failwith "bdt mal construit"
+	in aux nodeP
+
+(* On transcrit notre arbre en liste de références sur ses noeuds *)
+let treeToListe tree = 
+	let liste = ref [] in
+		let rec aux node father =  (* Ajoute à liste les trucs *)
+			match node with
+			| ToProcessRef -> failwith ("Arbre mal construit")
+			| LeafRef(b) -> () (* Rien à ajouter dans ce cas *)
+			| NodeRef(left, v, right) -> 
+				aux !right node;
+				liste := ((ref node), father)::(!liste);
+				aux !left node;
+		in aux tree ToProcessRef;
+	!liste
+
+let changeChild node child newChild = match node with
+	| NodeRef(left, v, right) -> if (!left = child) then left := newChild
+								else right := newChild
+	| _ -> failwith ("Pas un noeud")
 
 
-	let rec build_bdt0 f b = match b with
-		|Empty ->  match f with
-			|Var v -> Root(Node(False, v, True),(false::true::[]) ref)
-			|Cst b -> if b then Root(True, [true] ref) else Root(False, [false] ref)
-			|Not f -> Root(Node(True, v, False),(true::false::[]) ref)
-			|And (f1,f2) |Or (f1,f2) |Imp (f1,f2) |Eq (f1,f2) -> build_bdt f2 (build_bdt f1 b) 
-		|Root (n, l) -> match f with
-			|Var v -> Root(Node(n, v, n),l)
-			|Cst b -> Cst b
-			|Not f -> Not (replace f (a,b))
-			|And (f1,f2) ->  
-			|Or (f1,f2) -> Or (replace f1 (a,b), replace f2 (a,b))
-			|Imp (f1,f2) -> Imp (replace f1 (a,b), replace f2 (a,b))
-			|Eq (f1,f2) -> Eq (replace f1 (a,b), replace f2 (a,b)) *)
+let joinAlike listeNodeRefFather node father = 
+	(* find a node = to our node but with a different father and returns it *)
+	let rec aux liste = 
+		match liste with 
+			| [] -> ()
+			| x::l -> if !(fst x) = node && snd x != father then (* inutile de verif les fathers car (ref node, father) n'est pas dans la liste si elle est bien appelé *)
+				changeChild father node !(fst x) (* On fait pointer le pere vers le nouveau fils *)
+				(* On doit retirer node et ses fils ? Par forcément si on relie qu'avec des plus grands que nous dans la liste => pas de cycle qui se perd *)
+						else aux l
+	in aux listeNodeRefFather
+
+let simplify tree =	
+	let listeNodeRefFather = treeToListe tree in
+		let rec aux liste = (*  parcourt la liste en faisant des join avec les nodes plus loin *)
+			match liste with
+			 | [] -> tree
+			 | x :: l -> joinAlike l !(fst x) (snd x); (* On essaye de join x *)
+			 			 aux l (* On continue de récurrer *)
+		in aux listeNodeRefFather
+
+(* Donne la hauteur en descendant à gauche *)
+let rec leftheight bdtref = match bdtref with
+	| LeafRef(b) -> 1
+	| NodeRef(left,v,right) -> 1 + leftheight !left
+	| _ -> failwith ("Erreur sur la hauteur")
+
+(* Donne le nombre de sommet /!\ Détruit le bdtref *)
+let rec number bdtref = match bdtref with
+	| LeafRef(b) -> 0
+	| NodeRef(left,v,right) -> let nb = number (!left) + 1 + number(!right) in 
+		changeChild bdtref !left (LeafRef(true));
+		changeChild bdtref !right (LeafRef(true));
+		nb
+	| _ -> failwith ("Erreur sur la hauteur")	
+
+let a = make_bdt (Imp(Or(And(Var 'p', Var 'q'),And(Or(Var 'a', Var 'd'),Var 'y')),Var 'z'))
+let b = bdtref_to_bdt (simplify (bdt_to_bdtref a))
+let _ = print_int (number (simplify (bdt_to_bdtref a)))
+
+(*********************************************************************************
+**********************************************************************************
+**********************************************************************************
+**********************************************************************************
+**********************************************************************************)
+(* CODE PERMETTANT DE CREER UN BDT SIMPLE AVEC 0 OPTIMISATION*)
+type node = 
+	| Node of node*char*node 
+	| Leaf of bool option ref
+
+	let make_bdt fp = 
+		let rec aux1 l = match l with
+			| [] -> Leaf(ref None)
+			| hd::tl -> Node(aux1 tl, hd, aux1 tl)
+		in let b0 = aux1 (list_of_var fp) 
+		in let rec aux2 f b = match b with
+			|Leaf(a) -> begin match !a with
+				|None -> a := (Some(valuation(f))); ();
+				|Some(k) -> failwith "This leaf has already been evaluated"
+			end
+			|Node(left, v, right) -> begin 
+				aux2 (replace f (v, false)) left;
+				aux2 (replace f (v, true)) right;
+			end
+		in aux2 fp (b0); b0
+
+	let leaf_to_bool a = match !a with
+		| None -> failwith "A leaf have not been evaluated"
+		| Some(b) -> b
+
+	(* Parcours prefixe *)
+	let bdt_to_string nodeP = 
+		let rec aux node s = match node with
+		| Leaf(b) -> if leaf_to_bool (b) then s^" T " else s^" F "
+		| Node(left, v, right) -> aux right ((aux left s)^(String.make 1 v))
+	in aux nodeP "" 
+
+	let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 's', Var 's')))
+	let b = make_bdt (Or(Var 'a', Var 'b'))
+	let _ = print_string ("Arbre prefixe : "^(bdt_to_string a));

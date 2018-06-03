@@ -64,14 +64,6 @@ struct
 	| Single s -> 
 		begin
 			match stringToArray s with 
-			| c1::c2::c3::[] -> begin
-				match c2 with
-				| 'A' -> F.And(F.Var(c1), F.Var(c3))
-				| 'O' -> F.Or(F.Var(c1),F.Var(c3))
-				| 'I' -> F.Imp(F.Var(c1),F.Var(c3))
-				| 'E' -> F.Eq(F.Var(c1),F.Var(c3))
-				| _ -> failwith "Operation attendue"
-			end
 			| c1::c2::[] -> if (c1 = 'N') then F.Not(F.Var(c2)) else failwith "Mauvaise negation"
 			| c1::[] -> begin
 				match c1 with 
@@ -113,7 +105,8 @@ struct
 		in aux ""
 
 	let input_formula () =
-		print_endline "Enter a prositionnal formula :";
+		print_endline "Enter a prositionnal formula, il faut bien mettre les parenthèses les caractères à utiliser pour les opérations logique sont";
+		print_endline "[=> ; <=> ; ~ ;and ; or ; ( ; ) ; true ; false]";
 		(read_line ()) ^ "#";;
 
 end

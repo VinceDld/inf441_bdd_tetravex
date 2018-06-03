@@ -1,6 +1,8 @@
 open Parser;;
 open P;;
 open F;;
+open Bdd;;
+open Bdt;;
 
 (* Debug de split *)
 let _ = assert (stringToArray "azert" = ['a'; 'z'; 'e'; 'r'; 't'])
@@ -27,8 +29,8 @@ let _ = assert (replace_all (Eq(And(Var 'a', Cst true),Var 'b')) [('a',true)] = 
 
 (* Debug de valuation*)
 let _ = assert (valuation (Or(Not(Cst true),Cst false)) = false)
-let _ = assert (valuation (Imp(Cst true,Cst false)) = true)
-let _ = assert (valuation (Eq(And(Cst true, Cst true),Cst true)) = true)
+let _ = assert (valuation (Imp(Cst true,Cst false)) = false)
+let _ = assert (valuation (Eq(And(Cst true, Cst true),Cst true)) = true) 
 
 (* Debug de valuation*)
 let _ = assert (is_constant(And(Var 'b',Var 'a')) = false)
@@ -36,8 +38,11 @@ let _ = assert (is_constant(And(Var 'b',Var 'a')) = false)
 (* Debug de valuation*)
 let _ = assert (only_true_valuation(And(Var 'b',Var 'a')) = true)
 
-let s = input_formula ()
-let clean_formula = P.normaliser s
+let a = make_bdt (Or(Imp(Var 'p', Var 'q'),And(Var 'r', Var 's')))
+let b = make_bdt (And(Var 'a', Cst false))
+let _ = satisfiable (Or(Imp(Var 'p', Var 'q'),And(Var 'r', Var 's')))
+let _ = valid (And(Var 'a', Cst false))
+(* let s = input_formula ()
+let clean_formula = normaliser s
 let a = builder clean_formula
-let c = replace_all a [('c' , true) ; ('b' , false) ]
-let _ = if valuation c then print_endline "true" else print_endline "false"
+let _ = print_endline (toString a) *)
